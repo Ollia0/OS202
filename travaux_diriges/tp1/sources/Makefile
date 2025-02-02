@@ -7,7 +7,7 @@ ifdef DEBUG
 CXXFLAGS += -g -O0 -Wall -fbounds-check -pedantic -D_GLIBCXX_DEBUG
 CXXFLAGS2 = CXXFLAGS
 else
-CXXFLAGS2 = ${CXXFLAGS} -O2 -march=native -Wall 
+CXXFLAGS2 = ${CXXFLAGS}  
 CXXFLAGS += -O3 -march=native -Wall
 endif
 
@@ -37,8 +37,19 @@ help:
 	@echo "    all            : compile all executables"
 	@echo "Add DEBUG=yes to compile in debug"
 	@echo "Configuration :"
-	@echo "    CXX      :    $(CXX)"
+	@echo+= -g -O0 -Wall -fbounds-check -pedantic -D_GLIBCXX_DEBUG
+
+ALL= calcul_pi.exe TestProductMatrix.exe test_product_matrice_blas.exe 
+
+default:	help
+ "    CXX      :    $(CXX)"
 	@echo "    CXXFLAGS :    $(CXXFLAGS)"
 
 %.html: %.md
 	pandoc -s --toc $< --css=./github-pandoc.css --metadata pagetitle="OS202 - TD1" -o $@
+
+run_tests_ProdMat: TestProductMatrix.exe
+	@for i in $$(seq 1 16); do \
+		echo "Running with OMP_NUM_THREADS=$$i"; \
+		OMP_NUM_THREADS=$$i ./TestProductMatrix.exe $(n); \
+    done

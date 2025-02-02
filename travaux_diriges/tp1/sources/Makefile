@@ -53,3 +53,9 @@ run_tests_ProdMat: TestProductMatrix.exe
 		echo "Running with OMP_NUM_THREADS=$$i"; \
 		OMP_NUM_THREADS=$$i ./TestProductMatrix.exe $(n); \
     done
+
+run_tests_ProdBlas: test_product_matrice_blas.exe
+	@for i in $$(seq 1 16); do \
+		echo "Running with OMP_NUM_THREADS=$$i"; \
+		OMP_NUM_THREADS=$$i ./test_product_matrice_blas.exe $(n); \
+    done

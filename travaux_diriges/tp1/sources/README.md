@@ -134,18 +134,19 @@ Afin d'optimiser la vitesse d'exécution, il faut que la mise en cache se fasse 
 
 `make TestProduct.exe && ./TestProduct.exe 1024`
 
-  szBlock         | MFlops  | MFlops(n=2048) | MFlops(n=512)  | MFlops(n=4096)
-------------------|---------|----------------|----------------|---------------
-origine (=max)    |
-32                |
-64                |
-128               |
-256               |
-512               |
-1024              |
+  szBlock         | MFlops   | MFlops(n=2048) | MFlops(n=512)  | MFlops(n=4096)
+------------------|----------|----------------|----------------|---------------
+origine (=max)    |  4620    |    26219.6     |    23889.8     |  9937.21
+32                |  8724.45 |    6775.74     |     6294.85    |  10300.7
+64                | 40820.6  |    12314.3     |     4223.09    |  20792.2
+128               | 37856.7  |    31988.4     |     4895.12    |  17713.8
+256               | 39587.9  |    47306.6     |     4874.5     |  27465.9
+512               | 38742.6  |    42622       |    23889.8     |  36974.2
+1024              |  4620    |    52633.1     |    .......     |  40335
 
 *Discuter les résultats.*
 
+Dans le cas de matrices de grand taille, le produit par bloc améliore généralement la vitesse d'exécution. Il semble que *n = 1024* soit la meilleure option en moyenne.
 
 
 ### Bloc + OMP
@@ -153,18 +154,37 @@ origine (=max)    |
 
   szBlock      | OMP_NUM | MFlops  | MFlops(n=2048) | MFlops(n=512)  | MFlops(n=4096)|
 ---------------|---------|---------|----------------|----------------|---------------|
-1024           |  1      |         |                |                |               |
-1024           |  8      |         |                |                |               |
-512            |  1      |         |                |                |               |
-512            |  8      |         |                |                |               |
+1024           |  1      | 12345.7 |    10431.8     |    12821.5     |    9685.09    |
+1024           |  8      | 41113.9 |    45671.9     |    33581.8     |   43087.5     |
+512            |  1      | 12903.8 |    12437.4     |    12867.6     |   10753.8     |
+512            |  8      | 36740.7 |    45846.1     |    25610       |   43358.8     |
 
 *Discuter les résultats.*
-
+Le produit par bloc permet d'augmenter encore plus l'efficacité de la parallélisation. Il semble encore que 1024 soit la meilleure taille. On peut intuiter que le cache privé permet d'avoir 1024 entiers en mémoire. 
 
 ### Comparaison avec BLAS, Eigen et numpy
 
 *Comparer les performances avec un calcul similaire utilisant les bibliothèques d'algèbre linéaire BLAS, Eigen et/ou numpy.*
+  OMP_NUM      | MFlops linéaire, n = 2048 | MFlops BLAS, n = 2048|
+---------------|---------------------------|----------------------|
+1              |          11886.5          |       2968.87        |
+2              |          19460.5          |       2956.66        |
+3              |          24161.1          |       2969.73        |
+4              |          26570.3          |       2922.37        |
+5              |          30537.9          |       2950.27        |
+6              |          30803.9          |       2979.36        |
+7              |          36031.3          |       2964           |
+8              |          33991.9          |       2957.47        |
+9              |          33213.3          |       2963.81        |
+10             |          35264.9          |       2995.91        |
+11             |          37899.6          |       3074.07        |
+12             |          39085.2          |       3060.63        |
+13             |          41741.9          |       3075.08        |
+14             |          41997.7          |       3061.89        |
+15             |          31568.1          |       2948.19        |
+16             |          23293.8          |       3064.48        |
 
+Le programme linéaire, optimisé spécialement pour ma machine, est bien plus efficace. Cependant, à voir si cela serait vrai sur une autre machine.
 
 # Tips
 

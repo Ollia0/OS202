@@ -8,7 +8,7 @@ de cellules en deux dimensions. Ces cellules peuvent prendre deux états :
 A l'initialisation, certaines cellules sont vivantes, d'autres mortes.
 Le principe du jeu est alors d'itérer de telle sorte qu'à chaque itération, une cellule va devoir interagir avec
 les huit cellules voisines (gauche, droite, bas, haut et les quatre en diagonales.) L'interaction se fait selon les
-règles suivantes pour calculer l'irération suivante :
+règles suivantes pour calculer l'itération suivante :
     - Une cellule vivante avec moins de deux cellules voisines vivantes meurt ( sous-population )
     - Une cellule vivante avec deux ou trois cellules voisines vivantes reste vivante
     - Une cellule vivante avec plus de trois cellules voisines vivantes meurt ( sur-population )
@@ -23,7 +23,7 @@ On itère ensuite pour étudier la façon dont évolue la population des cellule
 """
 import pygame  as pg
 import numpy   as np
-
+from mpi4py import MPI
 
 class Grille:
     """
@@ -117,7 +117,7 @@ if __name__ == '__main__':
         "u" : ((200,200), [(101,101),(102,102),(103,102),(103,101),(104,103),(105,103),(105,102),(105,101),(105,105),(103,105),(102,105),(101,105),(101,104)]),
         "flat" : ((200,400), [(80,200),(81,200),(82,200),(83,200),(84,200),(85,200),(86,200),(87,200), (89,200),(90,200),(91,200),(92,200),(93,200),(97,200),(98,200),(99,200),(106,200),(107,200),(108,200),(109,200),(110,200),(111,200),(112,200),(114,200),(115,200),(116,200),(117,200),(118,200)])
     }
-    choice = 'glider'
+    choice = 'acorn'
     if len(sys.argv) > 1 :
         choice = sys.argv[1]
     resx = 800
@@ -133,19 +133,56 @@ if __name__ == '__main__':
         print("No such pattern. Available ones are:", dico_patterns.keys())
         exit(1)
     grid = Grille(*init_pattern)
-    appli = App((resx, resy), grid)
+    globCom = MPI.COMM_WORLD.Dup()
+    nbp = globCom.size
+    rank = globCom.rank
+    if rank == 0:
+        appli = App((resx, resy), grid)
 
     loop = True
     while loop:
         #time.sleep(0.1) # A régler ou commenter pour vitesse maxi
         t1 = time.time()
-        diff = grid.compute_next_iteration()
-        t2 = time.time()
-        appli.draw()
-        t3 = time.time()
+        # calcul de la prochaine génération
+        diff = None
+        if rank == 1:
+            diff = grid.compute_next_iteration()
+            globCom.send(diff, dest=0, tag=0)
+            diff = grid.compute_next_iteration()
+            t2 = time.time()
+            #print(f"Temps calcul prochaine generation : {t2-t1:2.2e} secondes\n")
+            globCom.send(diff, dest=0, tag=0)
+            # ce serait mieux d'utiliser probe afin de ne pas attendre le sendrecv
+            #loop = globCom.recv(source=0, tag=1)
+        #t2 = time.time()
+        # affichage
+        #diff = globCom.sendrecv(diff, dest=0, sendtag=0, source=1, recvtag=0)
+        if rank == 0:
+            diff = globCom.recv(source=1, tag=0)
+            t2 = time.time()
+            # en fait ça sert à rien d'utiliser diff à la place de grid.cells : ça fait la même taille
+            # il faudrait changer comment est calculé diff mais bon
+            grid.cells = np.logical_xor(grid.cells, diff).astype(np.uint8)
+            appli.draw()
+            t3 = time.time()
+            print(f"Temps affichage : {t3 - t2:2.2e} secondes\r", end='')
+            sys.stdout.flush()
+        
         for event in pg.event.get():
             if event.type == pg.QUIT:
                 loop = False
-        print(f"Temps calcul prochaine generation : {t2-t1:2.2e} secondes, temps affichage : {t3-t2:2.2e} secondes\r", end='')
+                globCom.send(loop, dest=1, tag=1)
+                print(f"Fermeture de la fenêtre\n")
+                pg.quit()
+                exit(0)
+        
+        if rank == 0 and globCom.iprobe(source=1, tag=1):
+            loop = globCom.recv(source=1, tag=1)
+            print(f"fermeture de la fenêtre\n")
+            break
 
 pg.quit()
+
+
+# Première parallélisation :
+# Affichage sur P0, calcul sur P1
